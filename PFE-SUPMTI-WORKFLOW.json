@@ -1,0 +1,753 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "768dc506-8b43-49fc-b8db-4639eeac44e2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -560,
+        -704
+      ],
+      "id": "b0399648-0a64-4eca-8f91-0f8808707062",
+      "name": "Webhook",
+      "webhookId": "768dc506-8b43-49fc-b8db-4639eeac44e2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert SOC Analyst. Analyze this security alert and provide a professional, concise summary for an incident case in IRIS.\n\n1. **Wazuh Alert**: {{ $node[\"Webhook\"].json[\"body\"][\"all_fields\"][\"rule\"][\"description\"] }}\n2. **Host**: {{ $node[\"Webhook\"].json[\"body\"][\"all_fields\"][\"agent\"][\"name\"] }}\n3. **VirusTotal Analysis**: Out of all engines,  {{ $json.data.attributes.last_analysis_stats.malicious }} flagged this file as MALICIOUS.\n4. **Full Log**: {{ $('Webhook').item.json.body.all_fields }}\n\nBased on the VirusTotal score and the log, explain: What happened? How dangerous is it? And what is the immediate next step for the admin? Keep the response professional and structured."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1936,
+        -1456
+      ],
+      "id": "01a998d8-9c89-474a-8eeb-76a9a9c52f84",
+      "name": "Message a model",
+      "retryOnFail": false,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "executeOnce": false,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ZikiKvpptPTQVlRC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=Alert Analysis :",
+        "options": {},
+        "embeds": {
+          "values": [
+            {
+              "description": "={{ $json.content.parts[0].text }}\n**Do you want to block this IP?**\n[APPROVE BLOCK]({{ $resumeWebhookUrl.replace('http://localhost:5678', 'https://rubbed-theorize-attempt.ngrok-free.dev') }}&decision=approve)\n[REJECT & IGNORE]({{ $resumeWebhookUrl.replace('http://localhost:5678', 'https://rubbed-theorize-attempt.ngrok-free.dev') }}&decision=reject)",
+              "author": "AI SOC ANALYSTE",
+              "color": "#F11313",
+              "title": "🚨  ALERT  🚨 "
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2608,
+        -944
+      ],
+      "id": "586778f2-1fa7-4509-8022-14aa8a1b09a0",
+      "name": "Discord",
+      "webhookId": "fdf8a64a-4bd1-4f4d-9e1f-19efd6f83582",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "BJHP3RsMd8r62Woj",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2eeed8a0-3bb0-4649-b23e-1817b8887ec1",
+              "leftValue": "={{ $json.data.attributes.last_analysis_stats.malicious }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        -992
+      ],
+      "id": "d798b433-32d8-434b-99b2-ae7b3b98e5d9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "httpVariantWarning": "",
+        "method": "POST",
+        "url": "=https://192.168.100.235/manage/cases/add",
+        "": "",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dfirIrisApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "case_name",
+              "value": "={{ $('Webhook').item.json.body.pretext }}"
+            },
+            {
+              "name": "case_description",
+              "value": "={{ $json.content.parts[0].text }}"
+            },
+            {
+              "name": "case_customer",
+              "value": "1"
+            },
+            {
+              "name": "case_soc_id",
+              "value": "=SOC-{{ $now.toFormat('yyyyMMdd-HHmmss') }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        },
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2160,
+        -608
+      ],
+      "id": "c401f470-39c4-4ff3-a67f-9669316f74ef",
+      "name": "DFIR-IRIS CREATE-CASE",
+      "extendsCredential": "dfirIrisApi",
+      "credentials": {
+        "dfirIrisApi": {
+          "id": "guzzVbvZGXm7orZt",
+          "name": "DFIR-IRIS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        -944
+      ],
+      "id": "92a25992-7455-4a4f-8fb9-92c5c5ca26c9",
+      "name": "Wait",
+      "webhookId": "4e5a7aa2-9423-4a4d-a652-01b5c81e8f22"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4d768371-9c5e-4aed-95ef-c176cabb1c74",
+              "leftValue": "={{ $json.query.decision }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2000,
+        -112
+      ],
+      "id": "f490e383-92b1-42ad-a829-9325a01cfe65",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "httpVariantWarning": "",
+        "method": "POST",
+        "url": "https://192.168.100.235/case/ioc/add",
+        "": "",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dfirIrisApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "cid",
+              "value": "={{ $json.data.case_id }}"
+            },
+            {
+              "name": "ioc_type_id",
+              "value": "1"
+            },
+            {
+              "name": "ioc_value",
+              "value": "={{ $('Webhook').item.json.body.all_fields.agent.name }}"
+            },
+            {
+              "name": "ioc_description",
+              "value": "Isolated Host IP - Detected by Wazuh"
+            },
+            {
+              "name": "ioc_tlp_id",
+              "value": "4"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        },
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2400,
+        -592
+      ],
+      "id": "46c749e8-bae3-418c-b436-c9ea6e9e9808",
+      "name": "DFIR-IRIS CREATE-IOC",
+      "extendsCredential": "dfirIrisApi",
+      "credentials": {
+        "dfirIrisApi": {
+          "id": "guzzVbvZGXm7orZt",
+          "name": "DFIR-IRIS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=easyrule block LAN {{ $node[\"Webhook\"].json[\"body\"][\"all_fields\"][\"agent\"][\"ip\"] }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        -96
+      ],
+      "id": "10ca0b2d-72e9-4579-9795-36701f53e642",
+      "name": "FIREWALL-PFSENSE",
+      "credentials": {
+        "sshPassword": {
+          "id": "XfrMeFg0sysOGufP",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "httpVariantWarning": "",
+        "method": "POST",
+        "url": "https://192.168.100.235/alerts/add",
+        "": "",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "dfirIrisApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert_title",
+              "value": "=Wazuh Detection: {{ $('Webhook').item.json.body.title }}"
+            },
+            {
+              "name": "alert_description",
+              "value": "=Raw Wazuh Log: {{ $('Webhook').item.json.body.all_fields.data.win.system.message }}"
+            },
+            {
+              "name": "alert_customer_id",
+              "value": "1"
+            },
+            {
+              "name": "alert_severity_id",
+              "value": "3"
+            },
+            {
+              "name": "alert_status_id",
+              "value": "1"
+            },
+            {
+              "name": "alert_source",
+              "value": "Wazuh"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        },
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1584,
+        -32
+      ],
+      "id": "39ea64d2-abac-4fe8-8893-80604f28decb",
+      "name": "DFIR-IRIS ALERTS",
+      "extendsCredential": "dfirIrisApi",
+      "credentials": {
+        "dfirIrisApi": {
+          "id": "guzzVbvZGXm7orZt",
+          "name": "DFIR-IRIS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "soc-alerts",
+          "mode": "name"
+        },
+        "messageType": "block",
+        "blocksUi": "={{\n  [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": $json.content.parts[0].text.substring(0, 2900),\n        \"emoji\": true\n      }\n    },\n    {\n      \"type\": \"divider\"\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"⚠️ *Action Required: Do you want to block this IP in pfSense?*\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🔴 APPROVE BLOCK\",\n            \"emoji\": true\n          },\n          \"style\": \"danger\",\n          \"url\": $resumeWebhookUrl.replace('http://localhost:5678', 'https://rubbed-theorize-attempt.ngrok-free.dev') + \"?decision=approve\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"🟢 REJECT & IGNORE\",\n            \"emoji\": true\n          },\n          \"style\": \"primary\",\n          \"url\": $resumeWebhookUrl.replace('http://localhost:5678', 'https://rubbed-theorize-attempt.ngrok-free.dev') + \"?decision=reject\"\n        }\n      ]\n    }\n  ]\n}}",
+        "text": "={{ $json.content.parts[0].text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2608,
+        -1088
+      ],
+      "id": "843da747-3479-4c5d-a644-ea0c5550f6d1",
+      "name": "Send a message",
+      "webhookId": "40b29c93-41f9-45e7-b8bf-1eca0b588ee3",
+      "credentials": {
+        "slackApi": {
+          "id": "iASwZg8dKya8WYU2",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Extracted_Hash }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "id": "6b50e590-0314-4765-8329-276804775a06"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "HASH"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "19db6f85-c1f8-481d-98d8-742f59eb64f4",
+                    "leftValue": "={{ $json.Extracted_IP }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IP"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        -1056
+      ],
+      "id": "fb41dd34-10c6-4f95-92c0-2f0f019da2ff",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cde3e25f-022f-4705-ae09-61a6d99540bd",
+              "name": "Extracted_IP",
+              "value": "={{ $json.body.all_fields.data.win.eventdata.ipAddress }}",
+              "type": "string"
+            },
+            {
+              "id": "d8f17ccd-c263-4995-94a4-d56e789198c0",
+              "name": "Extracted_Hash",
+              "value": "={{ $json.body.all_fields.data.win.eventdata.hashes }}",
+              "type": "string"
+            },
+            {
+              "id": "144fc354-da04-48ed-b6a0-3ed6c9014749",
+              "name": "Extracted_Domain",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        -720
+      ],
+      "id": "17a3f9ee-b58d-4705-ad88-4093c2419a25",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "httpVariantWarning": "",
+        "method": "GET",
+        "url": "=https://www.virustotal.com/api/v3/ip_addresses/{{ $('Edit Fields').item.json.Extracted_IP }}",
+        "": "",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "virusTotalApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        864,
+        -704
+      ],
+      "id": "7a43e871-f057-45b4-8962-ba2e3ae62906",
+      "name": "VirusTotal-IP",
+      "extendsCredential": "virusTotalApi",
+      "credentials": {
+        "virusTotalApi": {
+          "id": "jjueQMzyHmyxR523",
+          "name": "VirusTotal account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "curlImport": "",
+        "httpVariantWarning": "",
+        "method": "GET",
+        "url": "=https://www.virustotal.com/api/v3/files/{{ $json.Extracted_Hash.split('SHA256=')[1].split(',')[0] }}",
+        "": "",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "virusTotalApi",
+        "provideSslCertificates": false,
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": false,
+        "options": {},
+        "infoMessage": ""
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        864,
+        -1008
+      ],
+      "id": "7b235662-7329-440b-a5db-ecc40d6242e5",
+      "name": "VirusTotal-HASH",
+      "extendsCredential": "virusTotalApi",
+      "credentials": {
+        "virusTotalApi": {
+          "id": "jjueQMzyHmyxR523",
+          "name": "VirusTotal account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        768,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "c1e5716e-7da9-4887-85a6-20a70f83d497",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "DFIR-IRIS CREATE-CASE",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DFIR-IRIS ALERTS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DFIR-IRIS CREATE-CASE": {
+      "main": [
+        [
+          {
+            "node": "DFIR-IRIS CREATE-IOC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "FIREWALL-PFSENSE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DFIR-IRIS ALERTS": {
+      "main": [
+        []
+      ]
+    },
+    "FIREWALL-PFSENSE": {
+      "main": [
+        []
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal-HASH",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "VirusTotal-IP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal-IP": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal-HASH": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cf5cb857-0a11-41f8-a35b-091feff5d5b4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "011f3b702af44d3800c0fdcfc15d9595d1198e7140ebf92c0fec50fa26a8d690"
+  },
+  "id": "mIz6fNmGoEMAiAL9",
+  "tags": []
+}
