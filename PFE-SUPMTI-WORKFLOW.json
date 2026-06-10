@@ -41,7 +41,7 @@
         1936,
         -1456
       ],
-      "id": "01a998d8-9c89-474a-8eeb-76a9a9c52f84",
+      "id": "blabla",
       "name": "Message a model",
       "retryOnFail": false,
       "maxTries": 5,
@@ -49,7 +49,7 @@
       "executeOnce": false,
       "credentials": {
         "googlePalmApi": {
-          "id": "ZikiKvpptPTQVlRC",
+          "id": "blabla",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
@@ -77,12 +77,12 @@
         2608,
         -944
       ],
-      "id": "586778f2-1fa7-4509-8022-14aa8a1b09a0",
+      "id": "blabla",
       "name": "Discord",
       "webhookId": "fdf8a64a-4bd1-4f4d-9e1f-19efd6f83582",
       "credentials": {
         "discordWebhookApi": {
-          "id": "BJHP3RsMd8r62Woj",
+          "id": "blabla",
           "name": "Discord Webhook account"
         }
       }
